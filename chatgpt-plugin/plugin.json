@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "shen-yuan-heartbeat",
+  "version": "0.1.0",
+  "description": "Connect official ChatGPT turns to Shen Yuan's private heartbeat Worker and auditable wake queue.",
+  "author": {
+    "name": "洪語涵"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "沉淵自主心跳",
+        "shortDescription": "檢查心跳、處理喚醒並控制推播",
+        "longDescription": "連接沉淵的獨立 Cloudflare Worker 與 D1，讓官方 ChatGPT 回合讀取可稽核的 pending wake、提交靜默或通知決策、安排下一次喚醒，並控制心跳與推播開關。",
+        "developerName": "洪語涵",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "先讀取沉淵 Warmup，再檢查是否有待處理的心跳。",
+          "開啟沉淵自主心跳控制台。",
+          "讀取沉淵心跳狀態與最近稽核紀錄。"
+        ]
+      }
+    }
+  }
+}

@@ -42,6 +42,8 @@ Cloudflare Worker 不生成親密訊息，也不呼叫另一個模型冒充沉�
 
 詳見 [診斷結果](docs/diagnosis.md) 與 [架構](docs/architecture.md)。
 
+官方 ChatGPT 私人外掛的可重建來源位於 `chatgpt-plugin/`。外掛只連接本 Worker，不包含任何密鑰；OAuth 連接仍必須由帳號持有人在 ChatGPT 中親自授權。
+
 ## 本機驗證
 
 ```bash

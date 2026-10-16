@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "shen-yuan-heartbeat": {
+      "type": "streamable-http",
+      "url": "https://shen-yuan-heartbeat.fffishau-living-room.workers.dev/mcp"
+    }
+  }
+}
