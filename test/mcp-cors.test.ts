@@ -13,19 +13,30 @@ describe("MCP OAuth CORS", () => {
 
     expect(response.status).toBe(401);
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(response.headers.get("www-authenticate")).toContain(
-      "/.well-known/oauth-protected-resource/mcp",
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer resource_metadata="https://heartbeat.example/.well-known/oauth-protected-resource"',
     );
+    const exposed = response.headers
+      .get("access-control-expose-headers")
+      ?.toLowerCase();
+    expect(exposed).toContain("www-authenticate");
+    expect(exposed).toContain("mcp-session-id");
   });
 
-  it("allows OAuth registration preflights", async () => {
+  it.each([
+    "/mcp",
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-authorization-server",
+    "/oauth/token",
+    "/oauth/register",
+  ])("allows browser preflights for %s", async (pathname) => {
     const response = await worker.fetch(
-      new Request("https://heartbeat.example/oauth/register", {
+      new Request(`https://heartbeat.example${pathname}`, {
         method: "OPTIONS",
         headers: {
           origin: "https://chatgpt.com",
           "access-control-request-method": "POST",
-          "access-control-request-headers": "content-type",
+          "access-control-request-headers": "authorization, content-type",
         },
       }),
       emptyEnv,
@@ -34,13 +45,17 @@ describe("MCP OAuth CORS", () => {
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
     expect(response.headers.get("access-control-allow-methods")).toContain("POST");
+    expect(response.headers.get("access-control-expose-headers")?.toLowerCase()).toContain(
+      "www-authenticate",
+    );
   });
 
-  it("serves protected-resource metadata with CORS", async () => {
+  it.each([
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-authorization-server",
+  ])("serves GET %s with CORS", async (pathname) => {
     const response = await worker.fetch(
-      new Request(
-        "https://heartbeat.example/.well-known/oauth-protected-resource/mcp",
-      ),
+      new Request(`https://heartbeat.example${pathname}`),
       emptyEnv,
     );
 

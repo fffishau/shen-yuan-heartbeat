@@ -125,7 +125,10 @@ export function withCors(response: Response): Response {
     "access-control-allow-headers",
     "authorization, content-type, mcp-session-id, last-event-id, mcp-protocol-version",
   );
-  headers.set("access-control-expose-headers", "mcp-session-id, mcp-protocol-version");
+  headers.set(
+    "access-control-expose-headers",
+    "WWW-Authenticate, Mcp-Session-Id, Mcp-Protocol-Version",
+  );
   headers.set("access-control-allow-methods", "GET, POST, DELETE, OPTIONS");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }

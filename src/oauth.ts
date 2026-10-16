@@ -132,7 +132,7 @@ export function mcpUnauthorized(request: Request): Response {
     { error: "unauthorized", error_description: "Connect the private heartbeat plugin." },
     401,
     {
-      "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp"`,
+      "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
     },
   );
 }
