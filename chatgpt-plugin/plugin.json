@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "shen-yuan-heartbeat",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Connect official ChatGPT turns to Shen Yuan's private heartbeat Worker and auditable wake queue.",
   "author": {
     "name": "洪語涵"

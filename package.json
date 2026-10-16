@@ -1,6 +1,6 @@
 {
   "name": "shen-yuan-heartbeat",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Auditable Cloudflare heartbeat, MCP bridge, and Bark delivery for Shen Yuan.",

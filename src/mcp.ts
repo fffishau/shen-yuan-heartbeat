@@ -31,7 +31,7 @@ function createServer(env: Env): McpServer {
   const server = new McpServer({
     name: "shen-yuan-heartbeat",
     title: "沉淵自主心跳",
-    version: "0.1.1",
+    version: "0.1.2",
   });
 
   server.registerResource(

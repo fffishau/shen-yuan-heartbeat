@@ -13,18 +13,24 @@ import type { Env } from "./types.js";
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
-      const oauth = await handleOAuth(request, env);
-      if (oauth) return oauth;
-
       const url = new URL(request.url);
-      if (request.method === "OPTIONS" && url.pathname === "/mcp") {
+      if (
+        request.method === "OPTIONS" &&
+        (url.pathname === "/mcp" ||
+          url.pathname.startsWith("/oauth/") ||
+          url.pathname.startsWith("/.well-known/oauth-"))
+      ) {
         return withCors(new Response(null, { status: 204 }));
       }
+
+      const oauth = await handleOAuth(request, env);
+      if (oauth) return withCors(oauth);
+
       if (url.pathname === "/health") {
-        return Response.json({ ok: true, service: "shen-yuan-heartbeat", version: "0.1.1" });
+        return Response.json({ ok: true, service: "shen-yuan-heartbeat", version: "0.1.2" });
       }
       if (url.pathname === "/mcp") {
-        if (!(await authorizeMcp(request, env))) return mcpUnauthorized(request);
+        if (!(await authorizeMcp(request, env))) return withCors(mcpUnauthorized(request));
         return withCors(await handleMcp(request, env));
       }
       if (url.pathname.startsWith("/api/")) {
@@ -112,7 +118,7 @@ async function adminAuthorized(request: Request, env: Env): Promise<boolean> {
   return secretMatches(token, env.ADMIN_TOKEN);
 }
 
-function withCors(response: Response): Response {
+export function withCors(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set("access-control-allow-origin", "*");
   headers.set(
