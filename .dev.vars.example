@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local tests. Never commit the real values.
+ADMIN_TOKEN=replace-with-a-long-random-token
+MCP_CONNECT_PASSPHRASE=replace-with-a-long-random-passphrase
+BARK_DEVICE_KEY=
+CHATGPT_CONVERSATION_URL=
+LIFE_EVENTS_BASE_URL=
+LIFE_EVENTS_READ_TOKEN=

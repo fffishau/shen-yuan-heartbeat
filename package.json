@@ -1,0 +1,29 @@
+{
+  "name": "shen-yuan-heartbeat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Auditable Cloudflare heartbeat, MCP bridge, and Bark delivery for Shen Yuan.",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "check": "npm run build && npm test",
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate:local": "wrangler d1 migrations apply shen-yuan-heartbeat --local",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261015.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.12",
+    "wrangler": "4.151.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

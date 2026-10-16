@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "shen-yuan-heartbeat",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "send_metrics": false,
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "shen-yuan-heartbeat",
+      "database_id": "dad49617-942a-4c35-a7e3-4ccb582cdb09",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "BARK_MODE": "dry-run",
+    "BARK_SERVER_URL": "https://api.day.app",
+    "TIMEZONE": "Asia/Taipei",
+    "QUIET_START": "04:00",
+    "QUIET_END": "13:30",
+    "INTERACTION_COOLDOWN_MINUTES": "20",
+    "MIN_WAKE_MINUTES": "5",
+    "MAX_WAKE_MINUTES": "55",
+    "MAX_PUSHES_PER_DAY": "4",
+    "RESERVATION_LEASE_SECONDS": "120"
+  }
+}
