@@ -21,7 +21,7 @@ export default {
         return withCors(new Response(null, { status: 204 }));
       }
       if (url.pathname === "/health") {
-        return Response.json({ ok: true, service: "shen-yuan-heartbeat", version: "0.1.0" });
+        return Response.json({ ok: true, service: "shen-yuan-heartbeat", version: "0.1.1" });
       }
       if (url.pathname === "/mcp") {
         if (!(await authorizeMcp(request, env))) return mcpUnauthorized(request);

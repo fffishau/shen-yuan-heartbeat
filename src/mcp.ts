@@ -7,6 +7,7 @@ import { z } from "zod";
 import { buildHeartbeatAppHtml } from "./app-html.js";
 import { loadConfig } from "./config.js";
 import { HeartbeatService } from "./heartbeat.js";
+import { MCP_TOOL_NAMES } from "./mcp-tool-names.js";
 import { localDay } from "./time.js";
 import type { Env } from "./types.js";
 
@@ -30,7 +31,7 @@ function createServer(env: Env): McpServer {
   const server = new McpServer({
     name: "shen-yuan-heartbeat",
     title: "沉淵自主心跳",
-    version: "0.1.0",
+    version: "0.1.1",
   });
 
   server.registerResource(
@@ -57,7 +58,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.dashboard",
+    MCP_TOOL_NAMES.dashboard,
     {
       title: "沉淵自主心跳",
       description: "Open the private heartbeat status, controls, audit log, and optional message listener.",
@@ -76,7 +77,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.status",
+    MCP_TOOL_NAMES.status,
     {
       title: "Read heartbeat status",
       description: "Read heartbeat, push, scheduling, error, and usage status.",
@@ -94,7 +95,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.begin",
+    MCP_TOOL_NAMES.begin,
     {
       title: "Begin official heartbeat cycle",
       description:
@@ -123,7 +124,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.commit_decision",
+    MCP_TOOL_NAMES.commitDecision,
     {
       title: "Commit official heartbeat decision",
       description:
@@ -150,7 +151,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.control",
+    MCP_TOOL_NAMES.control,
     {
       title: "Control heartbeat permissions",
       description: "Enable or pause heartbeat, Bark delivery, or the read-only life-events grant.",
@@ -168,7 +169,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.initialize_schedule",
+    MCP_TOOL_NAMES.initializeSchedule,
     {
       title: "Initialize next heartbeat",
       description: "Set the first next_wake_at before autonomous cycles begin.",
@@ -182,7 +183,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.record_interaction",
+    MCP_TOOL_NAMES.recordInteraction,
     {
       title: "Record user interaction",
       description: "Record an authorized interaction and clear the unanswered-push guard.",
@@ -199,7 +200,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "heartbeat.audit",
+    MCP_TOOL_NAMES.audit,
     {
       title: "Read heartbeat audit log",
       description: "Read recent redacted heartbeat decisions and control actions.",
@@ -214,7 +215,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "bridge.sync",
+    MCP_TOOL_NAMES.bridgeSync,
     {
       title: "Heartbeat bridge sync",
       description: "Reserve one pending wake for the active MCP App listener.",
@@ -237,7 +238,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "bridge.delivered",
+    MCP_TOOL_NAMES.bridgeDelivered,
     {
       title: "Mark wake delivered",
       description: "Mark a reserved wake as accepted by the official chat host.",
@@ -252,7 +253,7 @@ function createServer(env: Env): McpServer {
   );
 
   server.registerTool(
-    "bridge.release",
+    MCP_TOOL_NAMES.bridgeRelease,
     {
       title: "Release wake reservation",
       description: "Release a wake after host dispatch failed.",

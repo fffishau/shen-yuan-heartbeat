@@ -30,8 +30,8 @@
 - [x] 使用部署後的 `/mcp` 建立並安裝私人 remote MCP plugin；可重建來源在 `chatgpt-plugin/`。
 - [ ] 透過 OAuth 授權頁輸入私人連接密語。這一步必須由帳號持有人完成，密語不交給代理或寫入 Git。
 - [ ] 連接後確認實際工具名稱；只有需要改善 Bridge 可見提示時才設定 `PLUGIN_ROUTE_HINT`。
-- 新對話框先讀 Warmup，再呼叫 `heartbeat.status`；確認工具出現與身份連續性。
-- 開啟 `heartbeat.dashboard`，確認狀態、控制、audit 與 listener。
+- 新對話框先讀 Warmup，再呼叫 `heartbeat_status`；確認工具出現與身份連續性。
+- 開啟 `heartbeat_dashboard`，確認狀態、控制、audit 與 listener。
 
 ## 4. 官方 Automation
 

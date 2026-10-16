@@ -26,10 +26,10 @@ pending → reserved → host_sent → claimed → completed
 ## 官方決策協議
 
 1. 官方回合先讀 Warmup。
-2. 呼叫 `heartbeat.begin`，取得 state、due event、唯讀生活事件。
+2. 呼叫 `heartbeat_begin`，取得 state、due event、唯讀生活事件。
 3. 依實際情境選擇 `silent` 或 `notify`。
 4. 選擇 5～55 分鐘內的 `nextWakeAt`，並提供理由。
-5. 呼叫 `heartbeat.commit_decision`。
+5. 呼叫 `heartbeat_commit_decision`。
 6. Worker 再執行靜音時段、近期互動、未回覆、每日上限等硬性政策。
 7. 只有 policy 通過且 `BARK_MODE=live` 才發送官方回合提交的原文。
 

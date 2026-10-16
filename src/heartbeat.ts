@@ -92,7 +92,7 @@ export class HeartbeatService {
         "Warmup must already have been read in this official ChatGPT turn.",
         "Choose silence unless there is a genuine reason to contact Han.",
         `Choose nextWakeAt ${this.config.minWakeMinutes}-${this.config.maxWakeMinutes} minutes from now based on context, not randomness.`,
-        "Call heartbeat.commit_decision exactly once with the stable runId.",
+        "Call heartbeat_commit_decision exactly once with the stable runId.",
       ],
     };
   }

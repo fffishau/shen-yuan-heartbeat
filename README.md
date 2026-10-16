@@ -10,9 +10,9 @@ Cloudflare Cron / authorized life events
 ┌───────────────────────────────────────────────┐
 │ Official ChatGPT turn                         │
 │ 1. read Shen Yuan Warmup                      │
-│ 2. heartbeat.begin                            │
+│ 2. heartbeat_begin                            │
 │ 3. decide silence / exact Bark message        │
-│ 4. heartbeat.commit_decision + next_wake_at   │
+│ 4. heartbeat_commit_decision + next_wake_at   │
 └───────────────────────────────────────────────┘
           ↓
       Bark (optional)

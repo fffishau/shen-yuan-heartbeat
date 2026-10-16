@@ -1,5 +1,8 @@
+import { MCP_TOOL_NAMES } from "./mcp-tool-names.js";
+
 export function buildHeartbeatAppHtml(routeHint = ""): string {
   const route = JSON.stringify(routeHint.trim());
+  const tools = JSON.stringify(MCP_TOOL_NAMES);
   return `<!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -27,7 +30,7 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:0 0 12px}.muted{opacit
 </main>
 <script>
 (() => {
-  const ROUTE_HINT=${route};
+  const ROUTE_HINT=${route}; const TOOLS=${tools};
   const pending=new Map(); let rpcId=1; let listening=false; let timer=0; let inFlight=false;
   const statusEl=document.getElementById('status'); const metricsEl=document.getElementById('metrics'); const auditEl=document.getElementById('audit'); const listenerEl=document.getElementById('listener'); const listenerStatus=document.getElementById('listenerStatus');
   function request(method,params){const id=rpcId++;window.parent.postMessage({jsonrpc:'2.0',id,method,params},'*');return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});setTimeout(()=>{if(pending.has(id)){pending.delete(id);reject(new Error(method+' timed out'));}},20000);});}
@@ -35,12 +38,12 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:0 0 12px}.muted{opacit
   const callTool=(name,args={})=>request('tools/call',{name,arguments:args});
   const text=(value)=>value===null||value===undefined?'—':String(value);
   function metric(label,value){const node=document.createElement('div');node.className='metric';const l=document.createElement('div');l.className='label';l.textContent=label;const v=document.createElement('div');v.className='value';v.textContent=text(value);node.append(l,v);return node;}
-  async function refresh(){statusEl.textContent='讀取中…';try{const result=await callTool('heartbeat.status');const data=result.structuredContent;const s=data.state;metricsEl.replaceChildren(metric('心跳',s.heartbeatEnabled?'啟用':'暫停'),metric('推播',s.pushEnabled?'啟用':'停止'),metric('最近喚醒',s.lastOfficialWakeAt),metric('下次預定',s.nextWakeAt),metric('最近 Bark',s.lastBarkAt),metric('跳過原因',s.lastSkipReason),metric('最近錯誤',s.lastError),metric('今日官方喚醒',data.usageToday.officialWakes));statusEl.textContent='Bark 模式：'+data.deliveryMode+'；官方 Automation 最快每小時一次。';const audit=await callTool('heartbeat.audit',{limit:12});auditEl.textContent=JSON.stringify(audit.structuredContent.entries,null,2);}catch(error){statusEl.textContent='讀取失敗：'+error.message;}}
+  async function refresh(){statusEl.textContent='讀取中…';try{const result=await callTool(TOOLS.status);const data=result.structuredContent;const s=data.state;metricsEl.replaceChildren(metric('心跳',s.heartbeatEnabled?'啟用':'暫停'),metric('推播',s.pushEnabled?'啟用':'停止'),metric('最近喚醒',s.lastOfficialWakeAt),metric('下次預定',s.nextWakeAt),metric('最近 Bark',s.lastBarkAt),metric('跳過原因',s.lastSkipReason),metric('最近錯誤',s.lastError),metric('今日官方喚醒',data.usageToday.officialWakes));statusEl.textContent='Bark 模式：'+data.deliveryMode+'；官方 Automation 最快每小時一次。';const audit=await callTool(TOOLS.audit,{limit:12});auditEl.textContent=JSON.stringify(audit.structuredContent.entries,null,2);}catch(error){statusEl.textContent='讀取失敗：'+error.message;}}
   document.getElementById('refresh').addEventListener('click',refresh);
-  document.querySelectorAll('[data-control]').forEach((button)=>button.addEventListener('click',async()=>{button.disabled=true;try{await callTool('heartbeat.control',{control:button.dataset.control,enabled:button.dataset.enabled==='true'});await refresh();}catch(error){statusEl.textContent='控制失敗：'+error.message;}finally{button.disabled=false;}}));
+  document.querySelectorAll('[data-control]').forEach((button)=>button.addEventListener('click',async()=>{button.disabled=true;try{await callTool(TOOLS.control,{control:button.dataset.control,enabled:button.dataset.enabled==='true'});await refresh();}catch(error){statusEl.textContent='控制失敗：'+error.message;}finally{button.disabled=false;}}));
   function visible(event){return [ROUTE_HINT,event.visibleText||''].filter(Boolean).join('\\n\\n');}
   async function dispatch(event){await request('ui/update-model-context',{content:[{type:'text',text:String(event.modelContext||''),annotations:{audience:['assistant']}}],structuredContent:{bridgeEvent:{eventId:event.id,kind:event.kind,source:event.source,createdAt:event.createdAt}}});await request('ui/message',{role:'user',content:[{type:'text',text:visible(event)}]});}
-  async function sync(){if(!listening||inFlight)return;inFlight=true;try{const result=await callTool('bridge.sync',{listenerId:'view-'+location.href.slice(-24)});const event=result&&result._meta&&result._meta.event;if(!event){listenerStatus.textContent='監聽中，沒有 pending wake。';return;}listenerStatus.textContent='傳送 '+event.id+'…';try{await dispatch(event);await callTool('bridge.delivered',{eventId:event.id});listenerStatus.textContent='已送入官方對話：'+event.id;}catch(error){await callTool('bridge.release',{eventId:event.id,error:String(error.message||error)}).catch(()=>{});throw error;}}catch(error){listenerStatus.textContent='Bridge 錯誤：'+error.message;}finally{inFlight=false;}}
+  async function sync(){if(!listening||inFlight)return;inFlight=true;try{const result=await callTool(TOOLS.bridgeSync,{listenerId:'view-'+location.href.slice(-24)});const event=result&&result._meta&&result._meta.event;if(!event){listenerStatus.textContent='監聽中，沒有 pending wake。';return;}listenerStatus.textContent='傳送 '+event.id+'…';try{await dispatch(event);await callTool(TOOLS.bridgeDelivered,{eventId:event.id});listenerStatus.textContent='已送入官方對話：'+event.id;}catch(error){await callTool(TOOLS.bridgeRelease,{eventId:event.id,error:String(error.message||error)}).catch(()=>{});throw error;}}catch(error){listenerStatus.textContent='Bridge 錯誤：'+error.message;}finally{inFlight=false;}}
   listenerEl.addEventListener('click',()=>{listening=!listening;listenerEl.textContent=listening?'停止監聽':'開始監聽';listenerStatus.textContent=listening?'監聽中…':'已停止監聽。';clearInterval(timer);if(listening){sync();timer=setInterval(sync,15000);}});
   refresh();
 })();
