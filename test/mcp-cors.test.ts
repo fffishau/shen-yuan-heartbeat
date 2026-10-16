@@ -62,4 +62,17 @@ describe("MCP OAuth CORS", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
   });
+
+  it("advertises refresh-token support", async () => {
+    const response = await worker.fetch(
+      new Request("https://heartbeat.example/.well-known/oauth-authorization-server"),
+      emptyEnv,
+    );
+    const metadata = await response.json() as { grant_types_supported: string[] };
+
+    expect(metadata.grant_types_supported).toEqual([
+      "authorization_code",
+      "refresh_token",
+    ]);
+  });
 });

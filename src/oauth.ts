@@ -16,6 +16,17 @@ type OAuthCode = {
   used_at: string | null;
 };
 
+type OAuthToken = {
+  client_id: string;
+  scope: string;
+  expires_at: string;
+  revoked_at: string | null;
+};
+
+const ACCESS_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_LIFETIME_MS = 180 * 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_PREFIX = "refresh_";
+
 export async function handleOAuth(
   request: Request,
   env: Env,
@@ -42,7 +53,7 @@ export async function handleOAuth(
       token_endpoint: `${origin}/oauth/token`,
       registration_endpoint: `${origin}/oauth/register`,
       response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
       token_endpoint_auth_methods_supported: ["none"],
       scopes_supported: ["heartbeat"],
@@ -51,6 +62,20 @@ export async function handleOAuth(
 
   if (url.pathname === "/oauth/register" && request.method === "POST") {
     const payload = (await request.json()) as Record<string, unknown>;
+    const requestedGrantTypes = Array.isArray(payload.grant_types)
+      ? payload.grant_types.filter((item): item is string => typeof item === "string")
+      : ["authorization_code"];
+    if (
+      !requestedGrantTypes.includes("authorization_code") ||
+      requestedGrantTypes.some(
+        (grantType) => !["authorization_code", "refresh_token"].includes(grantType),
+      )
+    ) {
+      return oauthError("invalid_client_metadata", 400);
+    }
+    const grantTypes = requestedGrantTypes.includes("refresh_token")
+      ? ["authorization_code", "refresh_token"]
+      : ["authorization_code"];
     const redirectUris = Array.isArray(payload.redirect_uris)
       ? payload.redirect_uris.filter((item): item is string => typeof item === "string")
       : [];
@@ -83,7 +108,7 @@ export async function handleOAuth(
         client_id_issued_at: Math.floor(Date.now() / 1000),
         redirect_uris: redirectUris,
         token_endpoint_auth_method: "none",
-        grant_types: ["authorization_code"],
+        grant_types: grantTypes,
         response_types: ["code"],
       },
       201,
@@ -108,7 +133,7 @@ export async function authorizeMcp(
   env: Env,
 ): Promise<boolean> {
   const token = /^Bearer\s+(.+)$/iu.exec(request.headers.get("authorization") ?? "")?.[1];
-  if (!token) return false;
+  if (!token || token.startsWith(REFRESH_TOKEN_PREFIX)) return false;
   const tokenHash = await sha256(token);
   const row = await env.DB.prepare(
     `SELECT expires_at, revoked_at FROM oauth_tokens WHERE token_hash = ?`,
@@ -210,9 +235,9 @@ async function authorizeSubmit(request: Request, env: Env): Promise<Response> {
 
 async function exchangeToken(request: Request, env: Env): Promise<Response> {
   const form = await request.formData();
-  if (form.get("grant_type") !== "authorization_code") {
-    return oauthError("unsupported_grant_type", 400);
-  }
+  const grantType = String(form.get("grant_type") ?? "");
+  if (grantType === "refresh_token") return refreshAccessToken(form, env);
+  if (grantType !== "authorization_code") return oauthError("unsupported_grant_type", 400);
   const code = String(form.get("code") ?? "");
   const verifier = String(form.get("code_verifier") ?? "");
   const clientId = String(form.get("client_id") ?? "");
@@ -233,7 +258,9 @@ async function exchangeToken(request: Request, env: Env): Promise<Response> {
     return oauthError("invalid_grant", 400);
   }
   const accessToken = randomToken(48);
-  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const refreshToken = `${REFRESH_TOKEN_PREFIX}${randomToken(48)}`;
+  const expiresAt = new Date(now.getTime() + ACCESS_TOKEN_LIFETIME_MS);
+  const refreshExpiresAt = new Date(now.getTime() + REFRESH_TOKEN_LIFETIME_MS);
   await env.DB.batch([
     env.DB.prepare("UPDATE oauth_codes SET used_at = ? WHERE code_hash = ?")
       .bind(iso(now), codeHash),
@@ -242,7 +269,62 @@ async function exchangeToken(request: Request, env: Env): Promise<Response> {
         (token_hash, client_id, scope, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?)`,
     ).bind(await sha256(accessToken), clientId, stored.scope, iso(now), iso(expiresAt)),
+    env.DB.prepare(
+      `INSERT INTO oauth_tokens
+        (token_hash, client_id, scope, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).bind(
+      await sha256(refreshToken),
+      clientId,
+      stored.scope,
+      iso(now),
+      iso(refreshExpiresAt),
+    ),
   ]);
+  return json({
+    access_token: accessToken,
+    token_type: "Bearer",
+    expires_in: Math.floor((expiresAt.getTime() - now.getTime()) / 1000),
+    refresh_token: refreshToken,
+    scope: stored.scope,
+  });
+}
+
+async function refreshAccessToken(form: FormData, env: Env): Promise<Response> {
+  const refreshToken = String(form.get("refresh_token") ?? "");
+  const clientId = String(form.get("client_id") ?? "");
+  if (!refreshToken.startsWith(REFRESH_TOKEN_PREFIX)) {
+    return oauthError("invalid_grant", 400);
+  }
+  const stored = await env.DB.prepare(
+    "SELECT client_id, scope, expires_at, revoked_at FROM oauth_tokens WHERE token_hash = ?",
+  )
+    .bind(await sha256(refreshToken))
+    .first<OAuthToken>();
+  const now = new Date();
+  if (
+    !stored ||
+    stored.revoked_at ||
+    stored.expires_at <= iso(now) ||
+    (clientId && stored.client_id !== clientId)
+  ) {
+    return oauthError("invalid_grant", 400);
+  }
+  const accessToken = randomToken(48);
+  const expiresAt = new Date(now.getTime() + ACCESS_TOKEN_LIFETIME_MS);
+  await env.DB.prepare(
+    `INSERT INTO oauth_tokens
+      (token_hash, client_id, scope, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      await sha256(accessToken),
+      stored.client_id,
+      stored.scope,
+      iso(now),
+      iso(expiresAt),
+    )
+    .run();
   return json({
     access_token: accessToken,
     token_type: "Bearer",
