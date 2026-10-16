@@ -27,16 +27,16 @@
 
 ## 3. ChatGPT plugin
 
-- 使用部署後的 `https://<worker>/mcp` 建立私人 remote MCP plugin。
-- 透過 OAuth 授權頁輸入私人連接密語。
-- 記下實際 plugin handle，再設定 `PLUGIN_ROUTE_HINT`。
+- [x] 使用部署後的 `/mcp` 建立並安裝私人 remote MCP plugin；可重建來源在 `chatgpt-plugin/`。
+- [ ] 透過 OAuth 授權頁輸入私人連接密語。這一步必須由帳號持有人完成，密語不交給代理或寫入 Git。
+- [ ] 連接後確認實際工具名稱；只有需要改善 Bridge 可見提示時才設定 `PLUGIN_ROUTE_HINT`。
 - 新對話框先讀 Warmup，再呼叫 `heartbeat.status`；確認工具出現與身份連續性。
 - 開啟 `heartbeat.dashboard`，確認狀態、控制、audit 與 listener。
 
 ## 4. 官方 Automation
 
-- 更新既有 `沉淵 Heartbeat` prompt。
-- 保持每小時 condition watch。
+- [x] 更新既有 `沉淵 Heartbeat` prompt，改用 Warmup 與獨立心跳 MCP，不再依賴 Pocket Home。
+- [x] 保持每小時 condition watch，並在 OAuth 驗收前維持停用。
 - 先在 dry-run 執行一次並檢查 audit。
 - 小手機重新授權前不要啟用依賴它的正式流程。
 
