@@ -3,6 +3,7 @@ import {
   WebStandardStreamableHTTPServerTransport,
   type WebStandardStreamableHTTPServerTransportOptions,
 } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { buildHeartbeatAppHtml } from "./app-html.js";
 import { loadConfig } from "./config.js";
@@ -36,7 +37,7 @@ export function createServer(env: Env): McpServer {
   const server = new McpServer({
     name: "shen-yuan-heartbeat",
     title: "沉淵自主心跳",
-    version: "0.1.4",
+    version: "0.1.6",
   });
 
   server.registerResource(
@@ -277,7 +278,41 @@ export function createServer(env: Env): McpServer {
     },
   );
 
+  addTopLevelOAuthSecuritySchemes(server);
   return server;
+}
+
+type ToolListHandler = (request: unknown, extra: unknown) => unknown | Promise<unknown>;
+
+/**
+ * The MCP SDK currently serializes custom auth metadata only through `_meta`.
+ * ChatGPT also requires the canonical top-level `securitySchemes` field and
+ * treats `_meta.securitySchemes` as a backwards-compatible mirror.
+ */
+function addTopLevelOAuthSecuritySchemes(server: McpServer): void {
+  const internals = server.server as unknown as {
+    _requestHandlers: Map<string, ToolListHandler>;
+    setRequestHandler: (
+      schema: typeof ListToolsRequestSchema,
+      handler: ToolListHandler,
+    ) => void;
+  };
+  const originalHandler = internals._requestHandlers.get("tools/list");
+  if (!originalHandler) throw new Error("tools/list handler is not registered");
+
+  internals.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
+    const result = await originalHandler(request, extra);
+    if (!result || typeof result !== "object" || !("tools" in result) || !Array.isArray(result.tools)) {
+      throw new Error("tools/list returned an invalid result");
+    }
+    return {
+      ...result,
+      tools: result.tools.map((tool: unknown) => {
+        if (!tool || typeof tool !== "object") throw new Error("tools/list returned an invalid tool");
+        return { ...tool, securitySchemes: OAUTH_SECURITY_SCHEMES };
+      }),
+    };
+  });
 }
 
 function summarizeStatus(status: Awaited<ReturnType<HeartbeatService["status"]>>): string {
