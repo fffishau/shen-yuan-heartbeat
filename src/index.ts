@@ -27,7 +27,7 @@ export default {
       if (oauth) return withCors(oauth);
 
       if (url.pathname === "/health") {
-        return Response.json({ ok: true, service: "shen-yuan-heartbeat", version: "0.1.4" });
+        return Response.json({ ok: true, service: "shen-yuan-heartbeat", version: "0.1.6" });
       }
       if (url.pathname === "/mcp") {
         if (!(await authorizeMcp(request, env))) return withCors(mcpUnauthorized(request));
