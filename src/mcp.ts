@@ -13,6 +13,11 @@ import type { Env } from "./types.js";
 
 const RESOURCE_URI = "ui://shen-yuan-heartbeat/dashboard-v1.html";
 const MCP_APP_MIME = "text/html;profile=mcp-app";
+const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2", scopes: [] }] as const;
+
+function oauthMeta(meta: Record<string, unknown> = {}): Record<string, unknown> {
+  return { securitySchemes: OAUTH_SECURITY_SCHEMES, ...meta };
+}
 
 export async function handleMcp(request: Request, env: Env): Promise<Response> {
   const transportOptions = {
@@ -25,13 +30,13 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
   return transport.handleRequest(request);
 }
 
-function createServer(env: Env): McpServer {
+export function createServer(env: Env): McpServer {
   const config = loadConfig(env);
   const service = new HeartbeatService(env, config);
   const server = new McpServer({
     name: "shen-yuan-heartbeat",
     title: "沉淵自主心跳",
-    version: "0.1.2",
+    version: "0.1.4",
   });
 
   server.registerResource(
@@ -64,11 +69,11 @@ function createServer(env: Env): McpServer {
       description: "Open the private heartbeat status, controls, audit log, and optional message listener.",
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-      _meta: {
+      _meta: oauthMeta({
         ui: { resourceUri: RESOURCE_URI },
         "openai/outputTemplate": RESOURCE_URI,
         "openai/ui": { entrypoints: [{ type: "global" }] },
-      },
+      }),
     },
     async () => ({
       structuredContent: { ready: true },
@@ -83,6 +88,7 @@ function createServer(env: Env): McpServer {
       description: "Read heartbeat, push, scheduling, error, and usage status.",
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      _meta: oauthMeta(),
     },
     async () => {
       await service.bridgeRepository().incrementUsage(localDay(new Date(), config.timezone), "mcp_calls");
@@ -105,6 +111,7 @@ function createServer(env: Env): McpServer {
         eventId: z.string().min(1).optional(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: false },
+      _meta: oauthMeta(),
     },
     async ({ source, eventId }) => {
       const result = await service.beginOfficialCycle({
@@ -140,6 +147,7 @@ function createServer(env: Env): McpServer {
         observedInteractionAt: z.string().datetime({ offset: true }).optional(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: true },
+      _meta: oauthMeta(),
     },
     async (input) => {
       const result = await service.commitDecision(input);
@@ -160,7 +168,7 @@ function createServer(env: Env): McpServer {
         enabled: z.boolean(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
-      _meta: { ui: { visibility: ["app", "model"] } },
+      _meta: oauthMeta({ ui: { visibility: ["app", "model"] } }),
     },
     async ({ control, enabled }) => ({
       structuredContent: await service.control(control, enabled, "official-chatgpt"),
@@ -175,6 +183,7 @@ function createServer(env: Env): McpServer {
       description: "Set the first next_wake_at before autonomous cycles begin.",
       inputSchema: { nextWakeAt: z.string().datetime({ offset: true }) },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
+      _meta: oauthMeta(),
     },
     async ({ nextWakeAt }) => ({
       structuredContent: await service.initializeSchedule(nextWakeAt, "official-chatgpt"),
@@ -192,6 +201,7 @@ function createServer(env: Env): McpServer {
         source: z.enum(["chatgpt", "pocket-home", "lumeet", "manual"]),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
+      _meta: oauthMeta(),
     },
     async ({ at, source }) => ({
       structuredContent: await service.recordInteraction(at, source),
@@ -206,7 +216,7 @@ function createServer(env: Env): McpServer {
       description: "Read recent redacted heartbeat decisions and control actions.",
       inputSchema: { limit: z.number().int().min(1).max(100).default(20) },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-      _meta: { ui: { visibility: ["app", "model"] } },
+      _meta: oauthMeta({ ui: { visibility: ["app", "model"] } }),
     },
     async ({ limit }) => ({
       structuredContent: { entries: await service.audit(limit) },
@@ -221,7 +231,7 @@ function createServer(env: Env): McpServer {
       description: "Reserve one pending wake for the active MCP App listener.",
       inputSchema: { listenerId: z.string().min(1).max(200) },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: false },
-      _meta: { ui: { visibility: ["app"] } },
+      _meta: oauthMeta({ ui: { visibility: ["app"] } }),
     },
     async ({ listenerId }) => {
       const event = await service
@@ -244,7 +254,7 @@ function createServer(env: Env): McpServer {
       description: "Mark a reserved wake as accepted by the official chat host.",
       inputSchema: { eventId: z.string().min(1) },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
-      _meta: { ui: { visibility: ["app"] } },
+      _meta: oauthMeta({ ui: { visibility: ["app"] } }),
     },
     async ({ eventId }) => {
       await service.bridgeRepository().markHostSent(eventId, new Date());
@@ -259,7 +269,7 @@ function createServer(env: Env): McpServer {
       description: "Release a wake after host dispatch failed.",
       inputSchema: { eventId: z.string().min(1), error: z.string().max(500) },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
-      _meta: { ui: { visibility: ["app"] } },
+      _meta: oauthMeta({ ui: { visibility: ["app"] } }),
     },
     async ({ eventId, error }) => {
       await service.bridgeRepository().release(eventId, new Date(), error);
