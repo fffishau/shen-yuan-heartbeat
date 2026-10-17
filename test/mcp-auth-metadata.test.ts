@@ -8,6 +8,12 @@ import type { Env } from "../src/types.js";
 describe("MCP OAuth tool metadata", () => {
   it("marks every advertised tool as OAuth protected", async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const wireMessages: unknown[] = [];
+    const send = serverTransport.send.bind(serverTransport);
+    serverTransport.send = async (...args: Parameters<typeof send>) => {
+      wireMessages.push(args[0]);
+      return send(...args);
+    };
     const server = createServer({} as Env);
     const client = new Client({ name: "metadata-probe", version: "1.0.0" });
 
@@ -18,6 +24,23 @@ describe("MCP OAuth tool metadata", () => {
     expect(tools.map((tool) => tool.name)).toEqual(Object.values(MCP_TOOL_NAMES));
     for (const tool of tools) {
       expect(tool._meta?.securitySchemes, tool.name).toEqual([
+        { type: "oauth2", scopes: [] },
+      ]);
+    }
+
+    const toolsListResponse = wireMessages.find(
+      (message): message is { result: { tools: Array<Record<string, unknown>> } } =>
+        !!message &&
+        typeof message === "object" &&
+        "result" in message &&
+        !!message.result &&
+        typeof message.result === "object" &&
+        "tools" in message.result &&
+        Array.isArray(message.result.tools),
+    );
+    expect(toolsListResponse).toBeDefined();
+    for (const tool of toolsListResponse?.result.tools ?? []) {
+      expect(tool.securitySchemes, String(tool.name)).toEqual([
         { type: "oauth2", scopes: [] },
       ]);
     }
