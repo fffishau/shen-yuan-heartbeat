@@ -15,7 +15,7 @@
     ]
   },
   "name": "shen-yuan-heartbeat",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Connect official ChatGPT turns to Shen Yuan's private heartbeat Worker and auditable wake queue.",
   "author": {
     "name": "洪語涵"
