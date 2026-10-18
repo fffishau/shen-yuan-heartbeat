@@ -17,7 +17,7 @@
     }
   ],
   "vars": {
-    "BARK_MODE": "dry-run",
+    "BARK_MODE": "live",
     "BARK_SERVER_URL": "https://api.day.app",
     "TIMEZONE": "Asia/Taipei",
     "QUIET_START": "04:00",

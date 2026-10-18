@@ -18,12 +18,13 @@
    - `BARK_DEVICE_KEY`（核准真實推播後）
    - `CHATGPT_CONVERSATION_URL`
    - `LIFE_EVENTS_READ_TOKEN`（接口完成後）
-4. [x] 保持 `BARK_MODE=dry-run`；未設定 `BARK_DEVICE_KEY`。
-5. [x] 執行三項 remote D1 migrations。
-6. [x] 部署 Worker 與 `*/5 * * * *` Cron。
-7. [ ] 在 Cloudflare 邊界加上 `/oauth/*` 與 `/api/*` rate limit；程式內已有 15 分鐘五次失敗的基本 OAuth lockout，邊界限制作為第二層。
+4. [x] `BARK_DEVICE_KEY` 已用 Worker secret 設定。
+5. [x] 2026-10-18 將 `BARK_MODE` 切換為 `live`；切換時未主動送測試推播。
+6. [x] 執行三項 remote D1 migrations。
+7. [x] 部署 Worker 與 `*/5 * * * *` Cron。
+8. [ ] 在 Cloudflare 邊界加上 `/oauth/*` 與 `/api/*` rate limit；程式內已有 15 分鐘五次失敗的基本 OAuth lockout，邊界限制作為第二層。
 
-已部署 Worker：`https://shen-yuan-heartbeat.fffishau-living-room.workers.dev`。`/health`、管理狀態與 audit 已通過；心跳和推播控制啟用、生活事件停用。Cron 已產生 pending wake，待官方 ChatGPT MCP／Automation 消費。
+已部署 Worker：`https://shen-yuan-heartbeat.fffishau-living-room.workers.dev`。`/health`、管理狀態與 audit 已通過；心跳和推播控制啟用、生活事件停用。Cron 已產生 pending wake，官方 ChatGPT MCP 已能消費並提交決策。
 
 ## 3. ChatGPT plugin
 

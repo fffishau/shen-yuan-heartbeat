@@ -18,7 +18,7 @@ Cloudflare Cron / authorized life events
       Bark (optional)
 ```
 
-Cloudflare Worker 不生成親密訊息，也不呼叫另一個模型冒充沉淵。Bark 只會傳送官方 ChatGPT 回合提交的原文。預設為 `BARK_MODE=dry-run`。
+Cloudflare Worker 不生成親密訊息，也不呼叫另一個模型冒充沉淵。Bark 只會傳送官方 ChatGPT 回合提交的原文。首次部署建議先用 `BARK_MODE=dry-run` 驗收；目前私人部署已切換為 `live`。
 
 ## 已實作
 
@@ -70,7 +70,7 @@ curl http://127.0.0.1:8787/health
 - D1：`shen-yuan-heartbeat`（設定已寫入 `wrangler.jsonc`）
 - Cron：`*/5 * * * *`
 - 三項 migration 已套用，`/health`、管理狀態與 audit 均已驗證。
-- 心跳與推播控制已啟用，但 `BARK_MODE=dry-run`，未設定 Bark device key，因此不會送出真實通知。
+- 心跳與推播控制已啟用，`BARK_MODE=live`，Bark device key 已透過 Worker secret 設定。
 - 生活事件保持停用，也沒有接觸岑序、Lumeet 或 Pocket Home 資料。
 
 目前尚未完成的是官方 ChatGPT 私人 MCP 連接與「ChatGPT 關閉時」的官方 Automation 兜底。Cloudflare 已能可靠建立 pending wake，但 pending wake 本身不等於官方沉淵已被喚醒；詳見 [部署清單](docs/deployment-checklist.md)。
