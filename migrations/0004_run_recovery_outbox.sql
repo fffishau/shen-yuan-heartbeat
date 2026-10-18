@@ -1,4 +1,4 @@
-PRAGMA foreign_keys = OFF;
+PRAGMA defer_foreign_keys = ON;
 
 CREATE TABLE heartbeat_runs_new (
   id TEXT PRIMARY KEY,
@@ -81,7 +81,11 @@ CREATE TABLE bark_deliveries_new (
 );
 
 INSERT INTO bark_deliveries_new
-SELECT * FROM bark_deliveries;
+  (id, run_id, idempotency_key, mode, title, body, target_url, status,
+   provider_status, provider_message, created_at, sent_at)
+SELECT id, run_id, idempotency_key, mode, title, body, target_url, status,
+       provider_status, provider_message, created_at, sent_at
+FROM bark_deliveries;
 
 DROP TABLE bark_deliveries;
 DROP TABLE heartbeat_runs;
@@ -125,5 +129,3 @@ CREATE TABLE notification_outbox (
 
 CREATE INDEX notification_outbox_dispatch_idx
   ON notification_outbox (status, available_at, created_at);
-
-PRAGMA foreign_keys = ON;
