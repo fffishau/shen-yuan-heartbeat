@@ -11,6 +11,9 @@ const config: HeartbeatConfig = {
   maxWakeMinutes: 55,
   maxPushesPerDay: 4,
   reservationLeaseSeconds: 120,
+  runLeaseSeconds: 900,
+  notificationMaxAttempts: 3,
+  notificationRetryMinutes: 5,
   barkMode: "dry-run",
 };
 

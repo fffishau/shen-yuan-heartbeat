@@ -14,14 +14,17 @@
 
 ```text
 pending → reserved → host_sent → claimed → completed
-               ↘ failed/release ↗
+               ↘ failed/release ↗       ↘ run lease expired
+                                           ↓
+                                        expired → schedule recovery wake
 ```
 
 - stable `eventId`
 - 120 秒 reservation lease
+- 15 分鐘 run lease；commit 缺失時由 Cron 原子回收
 - 最多三次 App dispatch
 - 75 分鐘 eligibility window，避免舊 care event 重播
-- Bark 使用獨立 idempotency key
+- 每個 wake 同時最多一個有效 run
 
 ## 官方決策協議
 
@@ -30,8 +33,11 @@ pending → reserved → host_sent → claimed → completed
 3. 依實際情境選擇 `silent` 或 `notify`。
 4. 選擇 5～55 分鐘內的 `nextWakeAt`，並提供理由。
 5. 呼叫 `heartbeat_commit_decision`。
-6. Worker 再執行靜音時段、近期互動、未回覆、每日上限等硬性政策。
-7. 只有 policy 通過且 `BARK_MODE=live` 才發送官方回合提交的原文。
+6. Worker 執行靜音時段、近期互動、未回覆、每日上限等硬性政策，原子完成 run 並將核准通知寫入 outbox；commit 本身不連線 Bark。
+7. Cron 以租約領取 outbox，派送前再次檢查 policy；只有通過且 `BARK_MODE=live` 才發送官方回合提交的原文。
+8. 明確 HTTP 失敗可有限重試；若 D1 已標記 sending 後 Bark 結果不明，標為 `uncertain` 並停止自動重送，留待人工核對。
+
+這套設計提供資料庫內的去重與 at-most-one active run，但不宣稱對外部 Bark 達成端到端 exactly-once；網路中斷可能使「對方已收到但本端不知道」無法自動判定。
 
 ## 成本上限
 

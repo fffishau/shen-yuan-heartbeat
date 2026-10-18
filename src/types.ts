@@ -17,6 +17,9 @@ export interface Env {
   MAX_WAKE_MINUTES?: string;
   MAX_PUSHES_PER_DAY?: string;
   RESERVATION_LEASE_SECONDS?: string;
+  RUN_LEASE_SECONDS?: string;
+  NOTIFICATION_MAX_ATTEMPTS?: string;
+  NOTIFICATION_RETRY_MINUTES?: string;
 }
 
 export type HeartbeatState = {
@@ -66,6 +69,9 @@ export type HeartbeatConfig = {
   maxWakeMinutes: number;
   maxPushesPerDay: number;
   reservationLeaseSeconds: number;
+  runLeaseSeconds: number;
+  notificationMaxAttempts: number;
+  notificationRetryMinutes: number;
   barkMode: "dry-run" | "live";
 };
 

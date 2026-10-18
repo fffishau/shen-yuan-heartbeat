@@ -3,7 +3,7 @@ import { randomId } from "./crypto.js";
 import { readLifeEvents } from "./life-events.js";
 import { evaluatePushPolicy, validateNextWakeAt } from "./policy.js";
 import { Repository } from "./repository.js";
-import { iso, localDay } from "./time.js";
+import { addMinutes, iso, localDay, parseIso } from "./time.js";
 import type {
   DecisionInput,
   Env,
@@ -54,7 +54,10 @@ export class HeartbeatService {
 
   async schedulerTick(now = new Date()) {
     try {
-      return await this.repository.schedulerTick(now, this.config);
+      const abandonedNotifications = await this.repository.recoverAbandonedNotificationLeases(now);
+      const tick = await this.repository.schedulerTick(now, this.config);
+      const notification = await this.dispatchNextNotification(now);
+      return { ...tick, abandonedNotifications, notification };
     } catch (error) {
       await this.repository.setError(now, message(error));
       throw error;
@@ -103,32 +106,34 @@ export class HeartbeatService {
       input.idempotencyKey,
     );
     if (previousCommit) {
+      if (previousCommit.id !== input.runId) {
+        throw new Error("idempotencyKey is already used by another heartbeat run.");
+      }
       return {
         idempotentReplay: true,
         effectiveAction: previousCommit.decision,
         skipReason: previousCommit.skipReason,
         nextWakeAt: previousCommit.nextWakeAt,
-        delivery: previousCommit.barkEventId
-          ? { id: previousCommit.barkEventId, status: "sent", mode: this.config.barkMode }
-          : undefined,
+        delivery: await this.repository.notificationForRun(previousCommit.id),
       };
     }
     const run = await this.repository.run(input.runId);
     if (!run) throw new Error("Unknown heartbeat runId.");
+    if (run.status === "expired") {
+      throw new Error("Heartbeat run lease expired; the decision was not accepted.");
+    }
     if (run.status !== "started") {
       return {
         idempotentReplay: true,
         effectiveAction: run.decision,
         skipReason: run.skipReason,
         nextWakeAt: run.nextWakeAt,
-        delivery: run.barkEventId
-          ? { id: run.barkEventId, status: "sent", mode: this.config.barkMode }
-          : undefined,
+        delivery: await this.repository.notificationForRun(run.id),
       };
     }
-    const existing = await this.repository.existingDelivery(input.idempotencyKey);
-    if (existing) {
-      return { idempotentReplay: true, delivery: existing };
+    const leaseExpiresAt = parseIso(run.leaseExpiresAt);
+    if (!leaseExpiresAt || leaseExpiresAt.getTime() < now.getTime()) {
+      throw new Error("Heartbeat run lease expired; wait for scheduler recovery.");
     }
 
     let state = await this.repository.state();
@@ -150,16 +155,9 @@ export class HeartbeatService {
 
     let effectiveAction: "silent" | "notify" = input.action;
     let skipReason = input.skipReason ?? null;
-    let barkEventId: string | null = null;
-    let delivery:
-      | {
-          id: string;
-          status: "simulated" | "sent" | "failed" | "blocked";
-          mode: "dry-run" | "live";
-          providerStatus: number | null;
-          providerMessage: string | null;
-        }
-      | undefined;
+    let outboxStatus: "pending" | "blocked" | null = null;
+    let notificationBody: string | null = null;
+    const outboxId = input.action === "notify" ? randomId("notification") : null;
 
     if (input.action === "notify") {
       const body = input.message?.trim() ?? "";
@@ -174,75 +172,19 @@ export class HeartbeatService {
         config: this.config,
         pushesToday,
       });
-      const deliveryId = randomId("bark");
+      notificationBody = body;
       if (!policy.allowed) {
         effectiveAction = "silent";
         skipReason = policy.reason;
-        delivery = {
-          id: deliveryId,
-          status: "blocked",
-          mode: this.config.barkMode,
-          providerStatus: null,
-          providerMessage: policy.reason,
-        };
-        await this.repository.recordDelivery({
-          ...delivery,
-          runId: input.runId,
-          idempotencyKey: input.idempotencyKey,
-          title: "沉淵",
-          body,
-          targetUrl: this.env.CHATGPT_CONVERSATION_URL ?? null,
-          now,
-        });
+        outboxStatus = "blocked";
       } else {
-        await this.repository.incrementUsage(
-          localDay(now, this.config.timezone),
-          "bark_attempts",
-        );
-        const result = await sendBark({
-          env: this.env,
-          config: this.config,
-          title: "沉淵",
-          body,
-        });
-        delivery = {
-          id: deliveryId,
-          status: result.status,
-          mode: this.config.barkMode,
-          providerStatus: result.providerStatus,
-          providerMessage: result.providerMessage,
-        };
-        await this.repository.recordDelivery({
-          ...delivery,
-          runId: input.runId,
-          idempotencyKey: input.idempotencyKey,
-          title: "沉淵",
-          body,
-          targetUrl: this.env.CHATGPT_CONVERSATION_URL ?? null,
-          now,
-        });
-        if (result.status === "sent") {
-          barkEventId = deliveryId;
-          await this.repository.incrementUsage(
-            localDay(now, this.config.timezone),
-            "bark_sent",
-          );
-        } else if (result.status === "failed") {
-          effectiveAction = "silent";
-          skipReason = "bark_delivery_failed";
-          await this.repository.setError(
-            now,
-            result.providerMessage ?? "Bark delivery failed.",
-          );
-        } else {
-          skipReason = "bark_dry_run";
-        }
+        outboxStatus = "pending";
       }
     } else if (!skipReason) {
       skipReason = "official_decision_silent";
     }
 
-    await this.repository.completeRun({
+    const committed = await this.repository.commitRun({
       runId: input.runId,
       idempotencyKey: input.idempotencyKey,
       now,
@@ -250,18 +192,123 @@ export class HeartbeatService {
       reason: input.reason,
       skipReason,
       nextWakeAt: new Date(input.nextWakeAt).toISOString(),
-      barkEventId,
+      outboxId,
+      outboxStatus,
+      outboxMode: this.config.barkMode,
+      notificationTitle: notificationBody ? "沉淵" : null,
+      notificationBody,
+      notificationTargetUrl: this.env.CHATGPT_CONVERSATION_URL ?? null,
       ...(input.observedInteractionAt
         ? { observedInteractionAt: input.observedInteractionAt }
         : {}),
     });
+    if (!committed.committed) {
+      const current = await this.repository.run(input.runId);
+      if (!current || current.status === "expired") {
+        throw new Error("Heartbeat run expired before the decision was committed.");
+      }
+      if (current.status === "completed" && current.idempotencyKey === input.idempotencyKey) {
+        return {
+          idempotentReplay: true,
+          effectiveAction: current.decision,
+          skipReason: current.skipReason,
+          nextWakeAt: current.nextWakeAt,
+          delivery: await this.repository.notificationForRun(current.id),
+        };
+      }
+      throw new Error("Heartbeat decision conflicted with another commit.");
+    }
     return {
       idempotentReplay: false,
       effectiveAction,
       skipReason,
       nextWakeAt: new Date(input.nextWakeAt).toISOString(),
-      delivery,
+      delivery: outboxId
+        ? { id: outboxId, status: outboxStatus, mode: this.config.barkMode }
+        : undefined,
     };
+  }
+
+  private async dispatchNextNotification(now: Date) {
+    const item = await this.repository.claimNotification(
+      now,
+      this.config.reservationLeaseSeconds,
+      this.config.notificationMaxAttempts,
+    );
+    if (!item) return null;
+
+    const [state, pushesToday] = await Promise.all([
+      this.repository.state(),
+      this.repository.pushesToday(localDay(now, this.config.timezone)),
+    ]);
+    const policy = evaluatePushPolicy({ now, state, config: this.config, pushesToday });
+    if (!policy.allowed) {
+      await this.repository.finishNotification({
+        item,
+        status: "blocked",
+        now,
+        providerStatus: null,
+        providerMessage: policy.reason,
+      });
+      return { id: item.id, status: "blocked", reason: policy.reason };
+    }
+
+    await this.repository.incrementUsage(
+      localDay(now, this.config.timezone),
+      "bark_attempts",
+    );
+
+    try {
+      // A notification committed while dry-run was active must never become live
+      // merely because the runtime setting changed before the next Cron tick.
+      const effectiveMode =
+        item.mode === "live" && this.config.barkMode === "live" ? "live" : "dry-run";
+      const result = await sendBark({
+        env: this.env,
+        config: { ...this.config, barkMode: effectiveMode },
+        title: item.title,
+        body: item.body,
+      });
+      if (result.status === "sent" || result.status === "simulated") {
+        await this.repository.finishNotification({
+          item,
+          status: result.status,
+          now,
+          providerStatus: result.providerStatus,
+          providerMessage: result.providerMessage,
+        });
+        if (result.status === "sent") {
+          await this.repository.incrementUsage(
+            localDay(now, this.config.timezone),
+            "bark_sent",
+          );
+        }
+        return { id: item.id, status: result.status };
+      }
+
+      const retryAt = addMinutes(
+        now,
+        this.config.notificationRetryMinutes * item.attempts,
+      );
+      const status = await this.repository.retryNotification({
+        item,
+        now,
+        maxAttempts: this.config.notificationMaxAttempts,
+        retryAt,
+        providerStatus: result.providerStatus,
+        providerMessage: result.providerMessage,
+      });
+      await this.repository.setError(
+        now,
+        result.providerMessage ?? "Bark delivery failed.",
+      );
+      return { id: item.id, status, retryAt: iso(retryAt) };
+    } catch (error) {
+      const detail = message(error);
+      await this.repository.markNotificationUncertain(item, now, detail);
+      await this.repository.setError(now, `Bark result unknown: ${detail}`);
+      return { id: item.id, status: "uncertain" };
+    }
   }
 
   async control(

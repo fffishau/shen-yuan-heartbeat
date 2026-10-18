@@ -20,9 +20,10 @@
    - `LIFE_EVENTS_READ_TOKEN`（接口完成後）
 4. [x] `BARK_DEVICE_KEY` 已用 Worker secret 設定。
 5. [x] 2026-10-18 將 `BARK_MODE` 切換為 `live`；切換時未主動送測試推播。
-6. [x] 執行三項 remote D1 migrations。
-7. [x] 部署 Worker 與 `*/5 * * * *` Cron。
-8. [ ] 在 Cloudflare 邊界加上 `/oauth/*` 與 `/api/*` rate limit；程式內已有 15 分鐘五次失敗的基本 OAuth lockout，邊界限制作為第二層。
+6. [x] 正式環境已執行前三項 remote D1 migrations。
+7. [ ] 審核並另行核准 `0004_run_recovery_outbox.sql`；先備份／唯讀檢查重複 started run，再套用 migration。
+8. [x] 部署 Worker 與 `*/5 * * * *` Cron。
+9. [ ] 在 Cloudflare 邊界加上 `/oauth/*` 與 `/api/*` rate limit；程式內已有 15 分鐘五次失敗的基本 OAuth lockout，邊界限制作為第二層。
 
 已部署 Worker：`https://shen-yuan-heartbeat.fffishau-living-room.workers.dev`。`/health`、管理狀態與 audit 已通過；心跳和推播控制啟用、生活事件停用。Cron 已產生 pending wake，官方 ChatGPT MCP 已能消費並提交決策。
 
@@ -67,3 +68,6 @@
 - Bark 可追溯、可停止、不連續催促。
 - 關閉各項控制後確實停止。
 - 對完全關閉 ChatGPT 時的 5～55 分鐘限制保持明示。
+- 故意留下 dry-run 的 started run，確認租約到期後轉為 expired，next wake 從回收時間推進。
+- 重複提交同一 idempotency key，確認只有一筆 outbox／delivery。
+- 模擬 Bark 明確失敗可有限重試；模擬結果不明則停在 `uncertain`，不得自動重送。

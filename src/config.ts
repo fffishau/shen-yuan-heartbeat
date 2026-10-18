@@ -15,6 +15,9 @@ export function loadConfig(env: Env): HeartbeatConfig {
     maxWakeMinutes: integer(env.MAX_WAKE_MINUTES, 55),
     maxPushesPerDay: integer(env.MAX_PUSHES_PER_DAY, 4),
     reservationLeaseSeconds: integer(env.RESERVATION_LEASE_SECONDS, 120),
+    runLeaseSeconds: integer(env.RUN_LEASE_SECONDS, 900),
+    notificationMaxAttempts: integer(env.NOTIFICATION_MAX_ATTEMPTS, 3),
+    notificationRetryMinutes: integer(env.NOTIFICATION_RETRY_MINUTES, 5),
     barkMode: env.BARK_MODE === "live" ? "live" : "dry-run",
   };
 }

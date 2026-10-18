@@ -37,7 +37,7 @@ export function createServer(env: Env): McpServer {
   const server = new McpServer({
     name: "shen-yuan-heartbeat",
     title: "沉淵自主心跳",
-    version: "0.1.6",
+    version: "0.2.0",
   });
 
   server.registerResource(
@@ -136,7 +136,7 @@ export function createServer(env: Env): McpServer {
     {
       title: "Commit official heartbeat decision",
       description:
-        "Commit the decision made by this official ChatGPT turn, enforce anti-disturbance policy, optionally deliver the exact official message through Bark, and schedule the next wake.",
+        "Commit the decision made by this official ChatGPT turn, enforce anti-disturbance policy, queue an approved notification for audited scheduler delivery, and schedule the next wake. This tool does not call Bark directly.",
       inputSchema: {
         runId: z.string().min(1),
         idempotencyKey: z.string().min(8).max(200),
@@ -147,7 +147,7 @@ export function createServer(env: Env): McpServer {
         nextWakeAt: z.string().datetime({ offset: true }),
         observedInteractionAt: z.string().datetime({ offset: true }).optional(),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true, idempotentHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
       _meta: oauthMeta(),
     },
     async (input) => {
